@@ -77,4 +77,38 @@ public class ExpenseRepository {
 
         return expenses;
     }
+
+    public List<Expense> findByUserIdAndDateBetween(String userId, LocalDate start, LocalDate end){
+        String query = "SELECT * FROM expenses WHERE user_id = ? AND date BETWEEN ? AND ?";
+        List<Expense> expenses = new ArrayList<>();
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, userId);
+            stmt.setDate(2, Date.valueOf(start));
+            stmt.setDate(3, Date.valueOf(end));
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Expense expense = new Expense(
+                            rs.getString("expense_id"),
+                            rs.getString("user_id"),
+                            rs.getString("category_id"),
+                            rs.getInt("amount"),
+                            rs.getDate("date").toLocalDate(),
+                            rs.getTimestamp("created_at").toLocalDateTime(),
+                            rs.getTimestamp("updated_at").toLocalDateTime()
+                    );
+                    expenses.add(expense);
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return expenses;
+    }
+
 }

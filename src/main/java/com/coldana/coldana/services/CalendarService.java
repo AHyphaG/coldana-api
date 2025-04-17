@@ -3,8 +3,10 @@ package com.coldana.coldana.services;
 import com.coldana.coldana.models.CalendarDay;
 import com.coldana.coldana.models.Category;
 import com.coldana.coldana.models.Expense;
+import com.coldana.coldana.models.OtherExpense;
 import com.coldana.coldana.repositories.CategoryRepository;
 import com.coldana.coldana.repositories.ExpenseRepository;
+import com.coldana.coldana.repositories.OtherExpenseRepository;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -15,236 +17,246 @@ import java.util.stream.Collectors;
 
 public class CalendarService {
 
-    private final ExpenseService expenseService;
-    private final CategoryService categoryService;
-
-    public CalendarService() {
-        this.expenseService = new ExpenseService();
-        this.categoryService = new CategoryService();
-    }
-
-    public List<CalendarDay> generateCalendar(String userId, int year, int month) {
-        List<CalendarDay> calendar = new ArrayList<>();
-
-        // 1. Ambil semua expenses di bulan itu
-        List<Expense> monthlyExpenses = expenseService.getExpensesByMonth(userId, year, month);
-        System.out.println("DEBUG: Expenses bulan ini = " + monthlyExpenses.size());
-        monthlyExpenses.forEach(e -> System.out.println("→ " + e.getCategoryId() + " on " + e.getDate()));
-
-        // 2. Map expense by date
-        Map<LocalDate, List<Expense>> expenseByDate = monthlyExpenses.stream()
-                .collect(Collectors.groupingBy(Expense::getDate));
-
-        // 3. Ambil kategori aktif user
-        List<Category> activeCategories = categoryService.getActiveCategoriesByUser(userId);
-
-        // 4. Loop per tanggal
-        YearMonth yearMonth = YearMonth.of(year, month);
-        for (int day = 1; day <= yearMonth.lengthOfMonth(); day++) {
-            LocalDate currentDate = LocalDate.of(year, month, day);
-
-            List<Category> categoriesForThisDate;
-
-            if (expenseByDate.containsKey(currentDate)) {
-                // Jika sudah ada expense, gunakan kategori dari histori
-                List<Expense> expensesToday = expenseByDate.get(currentDate);
-                Set<String> usedCategoryIds = expensesToday.stream()
-                        .map(Expense::getCategoryId)
-                        .collect(Collectors.toSet());
-
-                // Ambil info kategori berdasarkan ID
-                categoriesForThisDate = usedCategoryIds.stream()
-                        .map(categoryId -> categoryService.getCategoryById(userId, categoryId))
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
-
-            } else {
-                DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
-                String dayName = dayOfWeek.name(); // e.g., "MONDAY"
-
-                categoriesForThisDate = activeCategories.stream()
-                        .filter(cat -> {
-                            // Tampilkan hanya kategori daily yang punya hari aktif
-                            if (cat.isDaily()) {
-                                String days = cat.getActiveDays();
-                                if (days == null || days.isBlank()) return false;
-
-                                String[] activeDays = days.split(",");
-                                return Arrays.asList(activeDays).contains(dayName);
-                            }
-                            // Kalau bukan daily, jangan tampilkan (kecuali ada expense di bagian atas)
-                            return false;
-                        })
-                        .collect(Collectors.toList());
-            }
-
-            calendar.add(new CalendarDay(currentDate, categoriesForThisDate, expenseByDate.containsKey(currentDate)));
-        }
-
-        return calendar;
-    }
-//    public Map<String, Object> generateDailyExpenses(LocalDate date, String userId) {
-//        Map<String, Object> response = new HashMap<>();
-//        List<Map<String, Object>> expenseList = new ArrayList<>();
+//// Start Complete Version of GPT
+//public Map<String, Object> generateDailyExpenses(LocalDate date, String userId) {
+//    Map<String, Object> response = new HashMap<>();
+//    List<Map<String, Object>> expenseList = new ArrayList<>();
 //
-//        // Step 1: Ambil kategori harian aktif
-//        CategoryRepository categoryRepository = new CategoryRepository();
-//        List<Category> activeCategories = categoryRepository.findActiveByUserId(userId)
-//                .stream()
-//                .filter(Category::isDaily)
-//                .filter(cat -> {
-//                    if (!cat.isDaily()) return false;
+//    CategoryRepository categoryRepository = new CategoryRepository();
+//    ExpenseRepository expenseRepository = new ExpenseRepository();
 //
-//                    // Konversi nama hari ke format "Mon", "Tue", dll
-//                    String dayName = date.getDayOfWeek()
-//                            .getDisplayName(TextStyle.SHORT, Locale.ENGLISH); // hasil: "Mon", "Tue", dst
+//    // Step 1: Ambil semua kategori user
+//    List<Category> allCategories = categoryRepository.findByUserId(userId);
 //
-//                    if (cat.getActiveDays() == null) return true; // <- buat sarapan, dll yg setiap hari
+//    // Step 2: Ambil kategori harian aktif berdasarkan hari
+//    String dayName = date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH); // Mon, Tue, dst
+//    List<Category> activeCategories = allCategories.stream()
+//            .filter(Category::isDaily)
+//            .filter(cat -> {
+//                String activeDays = cat.getActiveDays();
+//                if (activeDays == null || activeDays.isBlank()) return true; // kategori yang aktif tiap hari
+//                List<String> days = Arrays.asList(activeDays.split(","));
+//                return days.contains(dayName);
+//            })
+//            .collect(Collectors.toList());
 //
-//                    List<String> days = Arrays.asList(cat.getActiveDays().split(","));
-//                    return days.contains(dayName);
-//                })
-//                .collect(Collectors.toList());
-//        System.out.println("DEBUG: Active categories untuk " + date + " = " + activeCategories.size());
-//        for (Category c : activeCategories) {
-//            System.out.println("  -> " + c.getName() + " (" + c.getActiveDays() + ")");
-//        }
-//        // Step 2: Ambil semua expenses untuk tanggal itu
-//        ExpenseRepository expenseRepository = new ExpenseRepository();
-//        List<Expense> expenses = expenseRepository.findByUserIdAndDate(userId, date);
-//        System.out.println("DEBUG: Expenses untuk tanggal " + date + " = " + expenses.size());
-//        // Step 3: Cocokkan kategori dengan expense
-//        for (Category cat : activeCategories) {
-//            Optional<Expense> matched = expenses.stream()
-//                    .filter(exp -> exp.getCategoryId().equals(cat.getCategoryId()))
-//                    .findFirst();
+////    System.out.println("DEBUG: Active categories untuk " + date + " = " + activeCategories.size());
+////    for (Category c : activeCategories) {
+////        System.out.println("  -> " + c.getName() + " (" + c.getActiveDays() + ")");
+////    }
 //
-//            Map<String, Object> expMap = new HashMap<>();
-//            expMap.put("categoryId", cat.getCategoryId());
-//            expMap.put("categoryName", cat.getName());
+//    // Step 3: Ambil semua expenses untuk tanggal tersebut
+//    List<Expense> expenses = expenseRepository.findByUserIdAndDate(userId, date);
+////    System.out.println("DEBUG: Expenses untuk tanggal " + date + " = " + expenses.size());
 //
-//            if (matched.isPresent()) {
-//                expMap.put("hasExpensed", true);
-//                expMap.put("amount", matched.get().getAmount());
-//            } else {
-//                expMap.put("hasExpensed", false);
-//                expMap.put("amount", null); // atau 0 kalau kamu mau default 0
-//            }
+//    // Step 4: Cocokkan expenses dengan kategori harian aktif
+//    for (Category cat : activeCategories) {
+//        Optional<Expense> matched = expenses.stream()
+//                .filter(exp -> exp.getCategoryId().equals(cat.getCategoryId()))
+//                .findFirst();
 //
-//            expenseList.add(expMap);
-//        }
-//        // Step 4: Tambahkan expenses dari kategori non-daily (isDaily = false) yang sudah dicatat
-//        List<String> dailyCategoryIds = activeCategories.stream()
-//                .map(Category::getCategoryId)
-//                .collect(Collectors.toList());
+//        Map<String, Object> expMap = new HashMap<>();
+//        expMap.put("categoryId", cat.getCategoryId());
+//        expMap.put("categoryName", cat.getName());
 //
-//        for (Expense exp : expenses) {
-//            if (!dailyCategoryIds.contains(exp.getCategoryId())) {
-//                Category category = categoryRepository.findById(exp.getCategoryId());
-//
-//                if (category != null && !category.isDaily()) {
-//                    Map<String, Object> expMap = new HashMap<>();
-//                    expMap.put("categoryId", category.getCategoryId());
-//                    expMap.put("categoryName", category.getName());
-//                    expMap.put("hasExpensed", true);
-//                    expMap.put("amount", exp.getAmount());
-//
-//                    expenseList.add(expMap);
-//                }
-//            }
+//        if (matched.isPresent()) {
+//            expMap.put("hasExpensed", true);
+//            expMap.put("amount", matched.get().getAmount());
+//        } else {
+//            expMap.put("hasExpensed", false);
+//            expMap.put("amount", null); // bisa diganti 0 kalau mau
 //        }
 //
-//        response.put("date", date.toString());
-//        response.put("expenses", expenseList);
-//        return response;
+//        expenseList.add(expMap);
 //    }
-public Map<String, Object> generateDailyExpenses(LocalDate date, String userId) {
-    Map<String, Object> response = new HashMap<>();
-    List<Map<String, Object>> expenseList = new ArrayList<>();
+//
+//    // Step 5: Tambahkan expenses dari kategori non-daily (isDaily = false)
+//    List<String> dailyCategoryIds = activeCategories.stream()
+//            .map(Category::getCategoryId)
+//            .collect(Collectors.toList());
+//
+//    for (Expense exp : expenses) {
+//        if (!dailyCategoryIds.contains(exp.getCategoryId())) {
+//            Category category = allCategories.stream()
+//                    .filter(c -> c.getCategoryId().equals(exp.getCategoryId()))
+//                    .findFirst()
+//                    .orElse(null);
+//
+//            if (category != null && !category.isDaily()) {
+//                Map<String, Object> expMap = new HashMap<>();
+//                expMap.put("categoryId", category.getCategoryId());
+//                expMap.put("categoryName", category.getName());
+//                expMap.put("hasExpensed", true);
+//                expMap.put("amount", exp.getAmount());
+//
+//                expenseList.add(expMap);
+//            }
+//        }
+//    }
+//
+//    OtherExpenseRepository otherExpenseRepository = new OtherExpenseRepository();
+//    List<OtherExpense> otherExpenses = otherExpenseRepository.findByUserIdAndDate(userId, date);
+//
+//    List<Map<String, Object>> otherExpenseList = new ArrayList<>();
+//    for (OtherExpense oe : otherExpenses) {
+//        Map<String, Object> oeMap = new HashMap<>();
+//        oeMap.put("description", oe.getDescription());
+//        oeMap.put("amount", oe.getAmount());
+//        otherExpenseList.add(oeMap);
+//    }
+//
+//    response.put("date", date.toString());
+//    response.put("expenses", expenseList);
+//    response.put("other_expenses", otherExpenseList);
+//    return response;
+//}
+//
+//    public List<Map<String, Object>> generateCalendar(LocalDate start, LocalDate end, String userId) {
+//        List<Map<String, Object>> calendar = new ArrayList<>();
+//        for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+//            calendar.add(generateDailyExpenses(date, userId));
+//        }
+//        return calendar;
+//    }
+//
+//// End Complete Version Of GPT
 
+
+// Start Complete Optimized Version
+public List<Map<String, Object>> generateCalendar(LocalDate start, LocalDate end, String userId) {
+    // Pre-fetch semua data yang dibutuhkan untuk keseluruhan rentang waktu
     CategoryRepository categoryRepository = new CategoryRepository();
     ExpenseRepository expenseRepository = new ExpenseRepository();
+    OtherExpenseRepository otherExpenseRepository = new OtherExpenseRepository();
 
-    // Step 1: Ambil semua kategori user
+    // 1. Ambil semua kategori user sekali saja
     List<Category> allCategories = categoryRepository.findByUserId(userId);
+    Map<String, Category> categoryMap = allCategories.stream()
+            .collect(Collectors.toMap(Category::getCategoryId, c -> c));
 
-    // Step 2: Ambil kategori harian aktif berdasarkan hari
-    String dayName = date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH); // Mon, Tue, dst
-    List<Category> activeCategories = allCategories.stream()
+    // 2. Ambil semua expenses untuk seluruh rentang tanggal
+    List<Expense> allExpenses = expenseRepository.findByUserIdAndDateBetween(userId, start, end);
+
+    // 3. Kelompokkan expenses berdasarkan tanggal
+    Map<LocalDate, List<Expense>> expensesByDate = allExpenses.stream()
+            .collect(Collectors.groupingBy(Expense::getDate));
+
+    // 4. Ambil semua other expenses untuk seluruh rentang tanggal
+    List<OtherExpense> allOtherExpenses = otherExpenseRepository.findByUserIdAndDateBetween(userId, start, end);
+
+    // 5. Kelompokkan other expenses berdasarkan tanggal
+    Map<LocalDate, List<OtherExpense>> otherExpensesByDate = allOtherExpenses.stream()
+            .collect(Collectors.groupingBy(OtherExpense::getDate));
+
+    // 6. Pisahkan kategori daily dan non-daily untuk efisiensi
+    List<Category> dailyCategories = allCategories.stream()
             .filter(Category::isDaily)
-            .filter(cat -> {
-                String activeDays = cat.getActiveDays();
-                if (activeDays == null || activeDays.isBlank()) return true; // kategori yang aktif tiap hari
-                List<String> days = Arrays.asList(activeDays.split(","));
-                return days.contains(dayName);
-            })
             .collect(Collectors.toList());
 
-    System.out.println("DEBUG: Active categories untuk " + date + " = " + activeCategories.size());
-    for (Category c : activeCategories) {
-        System.out.println("  -> " + c.getName() + " (" + c.getActiveDays() + ")");
+    // 7. Buat hasil calendar
+    List<Map<String, Object>> calendar = new ArrayList<>();
+
+    for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+        calendar.add(generateDailyExpensesOptimized(
+                date,
+                userId,
+                dailyCategories,
+                categoryMap,
+                expensesByDate.getOrDefault(date, Collections.emptyList()),
+                otherExpensesByDate.getOrDefault(date, Collections.emptyList())
+        ));
     }
 
-    // Step 3: Ambil semua expenses untuk tanggal tersebut
-    List<Expense> expenses = expenseRepository.findByUserIdAndDate(userId, date);
-    System.out.println("DEBUG: Expenses untuk tanggal " + date + " = " + expenses.size());
+    return calendar;
+}
 
-    // Step 4: Cocokkan expenses dengan kategori harian aktif
-    for (Category cat : activeCategories) {
-        Optional<Expense> matched = expenses.stream()
-                .filter(exp -> exp.getCategoryId().equals(cat.getCategoryId()))
-                .findFirst();
+    private Map<String, Object> generateDailyExpensesOptimized(
+            LocalDate date,
+            String userId,
+            List<Category> dailyCategories,
+            Map<String, Category> categoryMap,
+            List<Expense> expensesForDay,
+            List<OtherExpense> otherExpensesForDay) {
 
-        Map<String, Object> expMap = new HashMap<>();
-        expMap.put("categoryId", cat.getCategoryId());
-        expMap.put("categoryName", cat.getName());
+        Map<String, Object> response = new HashMap<>();
+        List<Map<String, Object>> expenseList = new ArrayList<>();
 
-        if (matched.isPresent()) {
-            expMap.put("hasExpensed", true);
-            expMap.put("amount", matched.get().getAmount());
-        } else {
-            expMap.put("hasExpensed", false);
-            expMap.put("amount", null); // bisa diganti 0 kalau mau
+        // 1. Dapatkan hari dalam format singkat (Mon, Tue, dll)
+        String dayName = date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+
+        // 2. Filter kategori daily yang aktif untuk hari ini
+        List<Category> activeDailyCategories = dailyCategories.stream()
+                .filter(cat -> {
+                    String activeDays = cat.getActiveDays();
+                    if (activeDays == null || activeDays.isBlank()) return true; // kategori yang aktif tiap hari
+                    List<String> days = Arrays.asList(activeDays.split(","));
+                    return days.contains(dayName);
+                })
+                .collect(Collectors.toList());
+
+        // 3. Buat map expenses untuk pencarian yang lebih cepat
+        Map<String, Expense> expenseMap = expensesForDay.stream()
+                .collect(Collectors.toMap(Expense::getCategoryId, e -> e, (e1, e2) -> e1));
+
+        // 4. Proses kategori daily aktif
+        for (Category cat : activeDailyCategories) {
+            Map<String, Object> expMap = new HashMap<>();
+            expMap.put("categoryId", cat.getCategoryId());
+            expMap.put("categoryName", cat.getName());
+
+            Expense expense = expenseMap.get(cat.getCategoryId());
+            if (expense != null) {
+                expMap.put("hasExpensed", true);
+                expMap.put("amount", expense.getAmount());
+            } else {
+                expMap.put("hasExpensed", false);
+                expMap.put("amount", null);
+            }
+
+            expenseList.add(expMap);
         }
 
-        expenseList.add(expMap);
-    }
+        // 5. Dapatkan ID kategori daily aktif untuk filter nantinya
+        Set<String> activeDailyCategoryIds = activeDailyCategories.stream()
+                .map(Category::getCategoryId)
+                .collect(Collectors.toSet());
 
-    // Step 5: Tambahkan expenses dari kategori non-daily (isDaily = false)
-    List<String> dailyCategoryIds = activeCategories.stream()
-            .map(Category::getCategoryId)
-            .collect(Collectors.toList());
+        // 6. Proses expenses untuk kategori non-daily
+        for (Expense expense : expensesForDay) {
+            if (!activeDailyCategoryIds.contains(expense.getCategoryId())) {
+                Category category = categoryMap.get(expense.getCategoryId());
 
-    for (Expense exp : expenses) {
-        if (!dailyCategoryIds.contains(exp.getCategoryId())) {
-            Category category = allCategories.stream()
-                    .filter(c -> c.getCategoryId().equals(exp.getCategoryId()))
-                    .findFirst()
-                    .orElse(null);
+                if (category != null && !category.isDaily()) {
+                    Map<String, Object> expMap = new HashMap<>();
+                    expMap.put("categoryId", category.getCategoryId());
+                    expMap.put("categoryName", category.getName());
+                    expMap.put("hasExpensed", true);
+                    expMap.put("amount", expense.getAmount());
 
-            if (category != null && !category.isDaily()) {
-                Map<String, Object> expMap = new HashMap<>();
-                expMap.put("categoryId", category.getCategoryId());
-                expMap.put("categoryName", category.getName());
-                expMap.put("hasExpensed", true);
-                expMap.put("amount", exp.getAmount());
-
-                expenseList.add(expMap);
+                    expenseList.add(expMap);
+                }
             }
         }
-    }
 
-    response.put("date", date.toString());
-    response.put("expenses", expenseList);
-    return response;
-}
-
-    public List<Map<String, Object>> generateCalendar(LocalDate start, LocalDate end, String userId) {
-        List<Map<String, Object>> calendar = new ArrayList<>();
-        for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
-            calendar.add(generateDailyExpenses(date, userId));
+        // 7. Proses other expenses
+        List<Map<String, Object>> otherExpenseList = new ArrayList<>();
+        for (OtherExpense oe : otherExpensesForDay) {
+            Map<String, Object> oeMap = new HashMap<>();
+            oeMap.put("description", oe.getDescription());
+            oeMap.put("amount", oe.getAmount());
+            otherExpenseList.add(oeMap);
         }
-        return calendar;
+
+        response.put("date", date.toString());
+        response.put("expenses", expenseList);
+        response.put("other_expenses", otherExpenseList);
+
+        return response;
     }
+// End Complete Optimized Version
 
 }
+
+
+
+
