@@ -9,6 +9,8 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
 @ApplicationScoped
 public class ExpenseRepository {
 
@@ -109,6 +111,84 @@ public class ExpenseRepository {
         }
 
         return expenses;
+    }
+
+    public void save(Expense expense) {
+        String query = "INSERT INTO expenses (user_id, category_id, amount, date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+
+            stmt.setString(1, expense.getUserId());
+            stmt.setString(2, expense.getCategoryId());
+            stmt.setInt(3, expense.getAmount());
+            stmt.setDate(4, Date.valueOf(expense.getDate()));
+            stmt.setTimestamp(5, Timestamp.valueOf(expense.getCreatedAt()));
+            stmt.setTimestamp(6, Timestamp.valueOf(expense.getUpdatedAt()));
+
+            int affectedRows = stmt.executeUpdate();
+
+            if (affectedRows == 0) {
+                throw new SQLException("Creating expense failed, no rows affected.");
+            }
+
+            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    expense.setExpensesId(generatedKeys.getString(1));
+                } else {
+                    throw new SQLException("Creating expense failed, no ID obtained.");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Optional<Expense> findByUserIdCategoryIdAndDate(String userId, String categoryId, LocalDate date) {
+        String query = "SELECT * FROM expenses WHERE user_id = ? AND category_id = ? AND date = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, userId);
+            stmt.setString(2, categoryId);
+            stmt.setDate(3, Date.valueOf(date));
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    Expense expense = new Expense(
+                            rs.getString("expense_id"),
+                            rs.getString("user_id"),
+                            rs.getString("category_id"),
+                            rs.getInt("amount"),
+                            rs.getDate("date").toLocalDate(),
+                            rs.getTimestamp("created_at").toLocalDateTime(),
+                            rs.getTimestamp("updated_at").toLocalDateTime()
+                    );
+                    return Optional.of(expense);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return Optional.empty();
+    }
+
+    public void update(Expense expense) {
+        String query = "UPDATE expenses SET amount = ?, updated_at = ? WHERE expense_id = ?";
+
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, expense.getAmount());
+            stmt.setTimestamp(2, Timestamp.valueOf(expense.getUpdatedAt()));
+            stmt.setString(3, expense.getExpensesId());
+
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
 }
