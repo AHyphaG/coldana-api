@@ -20,6 +20,7 @@ public class HelloApplication extends Application {
         resources.add(com.coldana.coldana.resources.DatabaseResource.class);
         resources.add(com.coldana.coldana.resources.AuthResource.class);
         resources.add(com.coldana.coldana.resources.CalendarResource.class);
+        resources.add(com.coldana.coldana.resources.CategoryResource.class);
         // ======= Providers dan Resources =======
         return resources;
     }

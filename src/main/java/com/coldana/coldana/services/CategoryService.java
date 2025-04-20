@@ -4,6 +4,7 @@ import com.coldana.coldana.models.Category;
 import com.coldana.coldana.repositories.CategoryRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public class CategoryService {
 
@@ -27,6 +28,10 @@ public class CategoryService {
 
     public void addCategory(Category category) {
         categoryRepository.save(category);
+    }
+
+    public List<Category> getCategoriesByUserAndType(String userId, Boolean isDaily) {
+        return categoryRepository.findByUserIdAndType(userId,isDaily);
     }
 
 //    public void updateCategory(Category category) {

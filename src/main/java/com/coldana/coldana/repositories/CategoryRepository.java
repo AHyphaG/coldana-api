@@ -87,6 +87,49 @@ public class CategoryRepository {
         return categories;
     }
 
+    public List<Category> findByUserIdAndType(String userId, Boolean isDaily) {
+        String query = "SELECT * FROM categories WHERE user_id = ? AND is_daily= ? AND isActive = TRUE";
+        List<Category> categories = new ArrayList<>();
+
+        try (Connection connection = DatabaseConfig.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query)) {
+
+            statement.setString(1, userId);
+            statement.setBoolean(2, isDaily);
+
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    // Tangani nilai nullable terlebih dahulu
+                    Timestamp updatedAtTs = rs.getTimestamp("updated_at");
+                    LocalDateTime updatedAt = (updatedAtTs != null) ? updatedAtTs.toLocalDateTime() : null;
+
+                    int dailyBudgetRaw = rs.getInt("daily_budget");
+                    Integer dailyBudget = rs.wasNull() ? null : dailyBudgetRaw;
+
+                    // Buat objek Category
+                    Category category = new Category(
+                            rs.getString("category_id"),
+                            rs.getString("user_id"),
+                            rs.getString("category_name"),
+                            rs.getInt("budget_amount"),
+                            rs.getTimestamp("created_at").toLocalDateTime(),
+                            updatedAt,
+                            rs.getBoolean("is_daily"),
+                            dailyBudget,
+                            rs.getString("active_days"),
+                            rs.getBoolean("isActive")
+                    );
+
+                    categories.add(category);
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return categories;
+    }
     public List<Category> findByUserId(String userId) {
         String query = "SELECT * FROM categories WHERE user_id = ?";
         List<Category> categories = new ArrayList<>();
