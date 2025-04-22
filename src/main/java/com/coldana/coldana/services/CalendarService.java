@@ -242,6 +242,7 @@ public List<Map<String, Object>> generateCalendar(LocalDate start, LocalDate end
         List<Map<String, Object>> otherExpenseList = new ArrayList<>();
         for (OtherExpense oe : otherExpensesForDay) {
             Map<String, Object> oeMap = new HashMap<>();
+            oeMap.put("id", oe.getId());
             oeMap.put("description", oe.getDescription());
             oeMap.put("amount", oe.getAmount());
             otherExpenseList.add(oeMap);

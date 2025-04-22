@@ -3,8 +3,10 @@ package com.coldana.coldana.resources;
 import com.coldana.coldana.middleware.AuthRequired;
 import com.coldana.coldana.models.CalendarDay;
 import com.coldana.coldana.models.Expense;
+import com.coldana.coldana.models.OtherExpense;
 import com.coldana.coldana.services.CalendarService;
 import com.coldana.coldana.services.ExpenseService;
+import com.coldana.coldana.services.OtherExpenseService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.container.ContainerRequestContext;
@@ -21,11 +23,13 @@ public class CalendarResource {
 
     private final CalendarService calendarService;
     private final ExpenseService expenseService;
+    private final OtherExpenseService otherExpenseService;
 
 
     public CalendarResource() {
         this.calendarService = new CalendarService();
         this.expenseService = new ExpenseService();
+        this.otherExpenseService = new OtherExpenseService();
     }
 
 //    @GET
@@ -132,5 +136,82 @@ public class CalendarResource {
                     .build();
         }
     }
+
+    @POST
+    @Path("/other-expense")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @AuthRequired
+    public Response addOtherExpense(Map<String, Object> otherExpenseData, @Context ContainerRequestContext requestContext) {
+        try {
+            String userId = (String) requestContext.getProperty("userId");
+
+            // Extract data from request
+            String description = otherExpenseData.get("description").toString();
+            double amount = ((Number) otherExpenseData.get("amount")).doubleValue();
+            LocalDate date = LocalDate.parse((String) otherExpenseData.get("date"));
+
+            // Create and save the other expense
+            OtherExpense otherExpense = new OtherExpense(
+                    null, // otherExpenseId will be generated
+                    userId,
+                    description,
+                    (int) amount, // Convert to int for your model
+                    date,
+                    LocalDateTime.now(),
+                    LocalDateTime.now()
+            );
+            // Save the other expense using the service
+            otherExpenseService.addOtherExpense(otherExpense);
+
+            return Response.status(Response.Status.CREATED)
+                    .entity(Map.of("message", "Other Expense added successfully"))
+                    .build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", e.getMessage()))
+                    .build();
+        }
+    }
+
+    @PUT
+    @Path("/other-expense")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @AuthRequired
+    public Response updateOtherExpense(Map<String, Object> otherExpenseData, @Context ContainerRequestContext requestContext) {
+        try {
+            String userId = (String) requestContext.getProperty("userId");
+
+            // Extract data from request
+            String otherExpenseId = otherExpenseData.get("id").toString();
+            String description = otherExpenseData.get("description").toString();
+            double amount = ((Number) otherExpenseData.get("amount")).doubleValue();
+            LocalDate date = LocalDate.parse((String) otherExpenseData.get("date"));
+
+            // Create and save the other expense
+            OtherExpense otherExpense = new OtherExpense(
+                    null, // otherExpenseId will be generated
+                    userId,
+                    description,
+                    (int) amount, // Convert to int for your model
+                    date,
+                    LocalDateTime.now(),
+                    LocalDateTime.now()
+            );
+            otherExpenseService.updateOtherExpense(otherExpenseId, userId, description, (int) amount, date);
+
+            return Response.status(Response.Status.CREATED)
+                    .entity(Map.of("message", "Other Expense updated successfully"))
+                    .build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", e.getMessage()))
+                    .build();
+        }
+    }
+
 
 }
